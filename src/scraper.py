@@ -1,156 +1,128 @@
 """
-Scraper de Lectulandia - Categoría Bélico
-==========================================
-
-Extrae metadatos y sinopsis de libros de la categoría "Bélico" en Lectulandia,
-siguiendo el diseño acordado en docs/diseno_extraccion.md.
-
-Estrategia (resumen):
-    1. Recorrer el listado de la categoría de forma secuencial (page/2, page/3, ...).
-    2. Extraer con BeautifulSoup las URLs de las fichas individuales de cada página listada.
-    3. Visitar cada ficha con Playwright y extraer título, autores, géneros, serie,
-       sinopsis y portada con BeautifulSoup.
-    4. Limpiar texto, evitar duplicados por url_libro y guardar incrementalmente en CSV.
+scraper.py
+Extracción de metadatos y sinopsis de libros de la categoría "Bélico" en Lectulandia.
+Unidad 1 - Procesamiento del Lenguaje Natural
 
 Uso:
-    python scraper.py --target 150 --headless
-    python scraper.py --target 150 --delay 2 --output ../data/libros.csv
+    python scraper.py
 """
 
-import argparse
 import csv
-import sys
+import os
+import random
 import time
 from datetime import date
-from pathlib import Path
+
 from urllib.parse import urljoin
 
-import pandas as pd
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import sync_playwright
 
-# --------------------------------------------------------------------------- #
-# Configuración
-# --------------------------------------------------------------------------- #
-
-BASE_URL = "https://ww3.lectulandia.co"
-CATEGORY_URL = f"{BASE_URL}/genero/belico/"
-CATEGORY_ORIGEN = "belico"
-
+DOMINIO = "https://ww3.lectulandia.com"
+BASE_URL = "https://ww3.lectulandia.com/genero/belico/"
+CATEGORIA = "belico"
+MIN_LIBROS = 50
+MAX_LIBROS = 150
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_PATH = os.path.join(SCRIPT_DIR, "..", "data", "libros.csv")
 FIELDNAMES = [
-    "titulo",
-    "autores",
-    "generos",
-    "serie",
-    "sinopsis",
-    "url_libro",
-    "url_portada",
-    "categoria_origen",
-    "fecha_extraccion",
+    "titulo", "autores", "generos", "serie", "sinopsis",
+    "url_libro", "categoria_origen", "fecha_extraccion", "url_portada",
 ]
 
-# Selectores según docs/diseno_extraccion.md
-SEL_TITULO = "#title h1"
-SEL_AUTORES = "#autor a.dinSource"
-SEL_GENEROS = "#genero a.dinSource"
-SEL_SERIE = "#serie a.dinSource"
-SEL_SINOPSIS = "#sinopsis span"
-SEL_PORTADA = "#leftBlock #cover img"
-SEL_BOOK_LINKS = "#page #content #primary #main #bookGrid article.card a.card-click-target"
+
+def url_pagina(n):
+    """Página 1 = URL base sin sufijo. Página 2+ = /page/n/."""
+    if n == 1:
+        return BASE_URL
+    return f"{BASE_URL}page/{n}/"
 
 
-# --------------------------------------------------------------------------- #
-# Utilidades
-# --------------------------------------------------------------------------- #
-
-def clean_text(text: str | None) -> str:
-    """Elimina espacios y saltos de línea innecesarios. Devuelve '' si no hay texto."""
-    if not text:
+def limpiar_texto(texto):
+    """Colapsa espacios y saltos de línea múltiples en uno solo."""
+    if not texto:
         return ""
-    return " ".join(text.split()).strip()
+    return " ".join(texto.split())
 
 
-def join_multi(elements) -> str:
-    """Une varios elementos <a> (autores, géneros, serie) con ';'."""
-    values = [clean_text(el.get_text()) for el in elements]
-    values = [v for v in values if v]
-    return ";".join(values)
-
-
-def load_existing_urls(output_path: Path) -> set[str]:
-    """Si ya existe un CSV parcial, carga las URLs ya extraídas para no repetirlas."""
-    if not output_path.exists():
+def cargar_urls_existentes():
+    """Lee el CSV si ya existe, para no reprocesar libros en una corrida anterior."""
+    if not os.path.exists(OUTPUT_PATH):
         return set()
-    try:
-        df = pd.read_csv(output_path)
-        return set(df["url_libro"].dropna().tolist())
-    except Exception:
-        return set()
+    with open(OUTPUT_PATH, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return {row["url_libro"] for row in reader}
 
 
-def append_row_to_csv(row: dict, output_path: Path) -> None:
-    """Guarda un registro de forma incremental (append) en el CSV final."""
-    file_exists = output_path.exists()
-    with open(output_path, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        if not file_exists:
+def inicializar_csv():
+    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+    if not os.path.exists(OUTPUT_PATH):
+        with open(OUTPUT_PATH, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
             writer.writeheader()
-        writer.writerow(row)
 
 
-# --------------------------------------------------------------------------- #
-# Extracción
-# --------------------------------------------------------------------------- #
+def guardar_registro(registro):
+    """Guarda incrementalmente: un libro a la vez, no se pierde nada si el script se corta."""
+    with open(OUTPUT_PATH, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writerow(registro)
 
-def get_html(page, url: str, timeout_ms: int = 20000) -> str | None:
-    """Navega a una URL con Playwright y devuelve el HTML. Devuelve None si falla."""
+
+def obtener_libros_de_pagina(page, numero_pagina):
+    """Devuelve [{url_libro, url_portada}, ...] de una página del listado de categoría."""
+    url = url_pagina(numero_pagina)
     try:
-        page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
-        return page.content()
-    except PlaywrightTimeoutError:
-        print(f"  [WARN] Timeout al cargar: {url}")
-        return None
-    except Exception as exc:
-        print(f"  [WARN] Error al cargar {url}: {exc}")
-        return None
+        page.goto(url, timeout=20000)
+        page.wait_for_selector("article.card", timeout=10000)
+    except Exception as e:
+        print(f"  [!] No se pudo cargar la página {numero_pagina}: {e}")
+        return [], False
 
+    soup = BeautifulSoup(page.content(), "html.parser")
 
-def extract_book_links(listing_html: str) -> list[str]:
-    """Extrae las URLs de las fichas individuales desde una página de listado."""
-    soup = BeautifulSoup(listing_html, "html.parser")
-    links = []
-    for a in soup.select(SEL_BOOK_LINKS):
-        href = a.get("href")
-        if not href:
+    libros = []
+    for art in soup.select("article.card"):
+        link_tag = art.select_one("a.title")
+        img_tag = art.select_one("img.cover")
+        if not link_tag or not link_tag.get("href"):
             continue
-        # El href puede venir sin el dominio, o ya completo
-        full_url = urljoin(BASE_URL, href)
-        links.append(full_url)
-    return links
+        libros.append({
+            "url_libro": urljoin(DOMINIO, link_tag["href"]),
+            "url_portada": img_tag["src"] if img_tag else "",
+        })
+
+    # TODO: confirmar el selector real del link "Siguiente" en el pie de paginación
+    hay_siguiente = soup.select_one("a.next") is not None
+    return libros, hay_siguiente
 
 
-def extract_book_data(book_html: str, url: str) -> dict | None:
-    """Extrae los metadatos y la sinopsis de una ficha individual de libro."""
-    soup = BeautifulSoup(book_html, "html.parser")
+def extraer_ficha(page, url_libro, url_portada):
+    """Visita la ficha individual del libro y extrae metadatos + sinopsis completa."""
+    page.goto(url_libro, timeout=20000)
+    page.wait_for_selector("#title", timeout=10000)
+    soup = BeautifulSoup(page.content(), "html.parser")
 
-    titulo_el = soup.select_one(SEL_TITULO)
-    titulo = clean_text(titulo_el.get_text()) if titulo_el else ""
+    titulo_tag = soup.select_one("#title > h1")
+    titulo = limpiar_texto(titulo_tag.get_text()) if titulo_tag else ""
 
-    if not titulo:
-        # Sin título no consideramos válido el registro (control mínimo del diseño)
-        return None
+    autor_tags = soup.select("#autor > a.dinSource")
+    autores = "; ".join(limpiar_texto(a.get_text()) for a in autor_tags)
 
-    autores = join_multi(soup.select(SEL_AUTORES))
-    generos = join_multi(soup.select(SEL_GENEROS))
-    serie = join_multi(soup.select(SEL_SERIE))
+    # TODO: confirmar selector real de género (expandir #genero en devtools)
+    genero_tags = soup.select("#genero a")
+    generos = "; ".join(limpiar_texto(g.get_text()) for g in genero_tags)
 
-    sinopsis_el = soup.select_one(SEL_SINOPSIS)
-    sinopsis = clean_text(sinopsis_el.get_text()) if sinopsis_el else ""
+    # TODO: confirmar selector real de serie (solo presente si el libro pertenece a una)
+    serie_tag = soup.select_one("#serie a")  # placeholder, revisar en devtools
+    serie = limpiar_texto(serie_tag.get_text()) if serie_tag else ""
 
-    portada_el = soup.select_one(SEL_PORTADA)
-    url_portada = portada_el.get("src") if portada_el else ""
-    if url_portada:
-        url_portada = urljoin(BASE_URL, url_portada)
+    sinopsis_tag = soup.select_one("#sinopsis span")
+    sinopsis = ""
+    if sinopsis_tag:
+        for br in sinopsis_tag.find_all("br"):
+            br.replace_with("\n")
+        sinopsis = limpiar_texto(sinopsis_tag.get_text(separator=" "))
 
     return {
         "titulo": titulo,
@@ -158,128 +130,62 @@ def extract_book_data(book_html: str, url: str) -> dict | None:
         "generos": generos,
         "serie": serie,
         "sinopsis": sinopsis,
-        "url_libro": url,
-        "url_portada": url_portada or "",
-        "categoria_origen": CATEGORY_ORIGEN,
+        "url_libro": url_libro,
+        "categoria_origen": CATEGORIA,
         "fecha_extraccion": date.today().isoformat(),
+        "url_portada": url_portada,
     }
 
 
-# --------------------------------------------------------------------------- #
-# Loop principal
-# --------------------------------------------------------------------------- #
-
-def collect_book_urls(page, target: int, delay: float) -> list[str]:
-    """Recorre el listado de la categoría de forma secuencial hasta juntar
-    al menos `target` URLs de libros únicas."""
-    urls: list[str] = []
-    seen = set()
-    page_num = 1
-
-    while len(urls) < target:
-        listing_url = CATEGORY_URL if page_num == 1 else urljoin(CATEGORY_URL, f"page/{page_num}/")
-        print(f"[LISTADO] Página {page_num}: {listing_url}")
-
-        html = get_html(page, listing_url)
-        if html is None:
-            print(f"  [WARN] No se pudo obtener la página {page_num}, se detiene el listado.")
-            break
-
-        links = extract_book_links(html)
-        if not links:
-            print(f"  [INFO] No se encontraron más libros en la página {page_num}. Fin del listado.")
-            break
-
-        nuevos = 0
-        for link in links:
-            if link not in seen:
-                seen.add(link)
-                urls.append(link)
-                nuevos += 1
-
-        print(f"  -> {nuevos} libros nuevos (acumulado: {len(urls)})")
-
-        page_num += 1
-        time.sleep(delay)
-
-    return urls[:target] if len(urls) > target else urls
-
-
-def scrape_books(page, book_urls: list[str], output_path: Path, delay: float) -> int:
-    """Visita cada ficha individual, extrae los datos y los guarda incrementalmente."""
-    already_done = load_existing_urls(output_path)
-    guardados = 0
-
-    for i, url in enumerate(book_urls, start=1):
-        if url in already_done:
-            continue  # evita duplicados si se corta y se vuelve a correr el script
-
-        print(f"[FICHA {i}/{len(book_urls)}] {url}")
-
-        html = get_html(page, url)
-        if html is None:
-            continue  # error controlado: se sigue con el próximo libro
-
-        try:
-            data = extract_book_data(html, url)
-        except Exception as exc:
-            print(f"  [WARN] Error al parsear {url}: {exc}")
-            continue
-
-        if data is None:
-            print("  [WARN] Registro descartado: sin título.")
-            continue
-
-        append_row_to_csv(data, output_path)
-        already_done.add(url)
-        guardados += 1
-
-        time.sleep(delay)
-
-    return guardados
-
-
-def run(target: int, delay: float, headless: bool, output: str) -> None:
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+def main():
+    inicializar_csv()
+    urls_existentes = cargar_urls_existentes()
+    total_guardados = len(urls_existentes)
+    print(f"Registros ya guardados previamente: {total_guardados}")
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-        print("=== Paso 1: recolectando URLs de libros del listado ===")
-        book_urls = collect_book_urls(page, target=target, delay=delay)
-        print(f"Total de URLs únicas recolectadas: {len(book_urls)}")
+        pagina_actual = 1
+        while total_guardados < MAX_LIBROS:
+            print(f"Recorriendo página de categoría {pagina_actual}...")
+            libros, hay_siguiente = obtener_libros_de_pagina(page, pagina_actual)
 
-        print("\n=== Paso 2: visitando fichas individuales ===")
-        guardados = scrape_books(page, book_urls, output_path, delay=delay)
+            if not libros and pagina_actual > 1:
+                print("No se encontraron más libros. Fin de la categoría.")
+                break
+
+            for libro in libros:
+                if total_guardados >= MAX_LIBROS:
+                    break
+                if libro["url_libro"] in urls_existentes:
+                    continue  # evita duplicados entre corridas
+
+                try:
+                    registro = extraer_ficha(page, libro["url_libro"], libro["url_portada"])
+                    guardar_registro(registro)
+                    urls_existentes.add(libro["url_libro"])
+                    total_guardados += 1
+                    print(f"  [{total_guardados}] {registro['titulo']}")
+                except Exception as e:
+                    print(f"  [!] Error al procesar {libro['url_libro']}: {e}")
+                    continue  # no se detiene la ejecución completa por un error puntual
+
+                time.sleep(random.uniform(1.5, 3.0))  # pausa entre fichas individuales
+
+            if not hay_siguiente:
+                print("No hay página siguiente. Fin de la categoría.")
+                break
+
+            pagina_actual += 1
+            time.sleep(random.uniform(1.0, 2.0))  # pausa entre páginas de categoría
 
         browser.close()
 
-    print(f"\nListo. Se guardaron {guardados} libros nuevos en: {output_path}")
-
-    # Control mínimo: reportar duplicados y campos faltantes
-    if output_path.exists():
-        df = pd.read_csv(output_path)
-        print(f"Total acumulado en {output_path.name}: {len(df)} registros")
-        print(f"Duplicados por url_libro: {df.duplicated(subset='url_libro').sum()}")
-        print(f"Registros sin sinopsis: {(df['sinopsis'].fillna('') == '').sum()}")
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Scraper de la categoría Bélico en Lectulandia")
-    parser.add_argument("--target", type=int, default=150, help="Cantidad objetivo de libros (100-200)")
-    parser.add_argument("--delay", type=float, default=1.5, help="Pausa en segundos entre requests")
-    parser.add_argument("--headless", action="store_true", default=True, help="Ejecutar sin ventana de navegador")
-    parser.add_argument("--show-browser", dest="headless", action="store_false", help="Mostrar la ventana del navegador")
-    parser.add_argument("--output", type=str, default="../data/libros.csv", help="Ruta del CSV de salida")
-    args = parser.parse_args()
-
-    try:
-        run(target=args.target, delay=args.delay, headless=args.headless, output=args.output)
-    except KeyboardInterrupt:
-        print("\nInterrumpido por el usuario. Los datos guardados hasta ahora quedan en el CSV.")
-        sys.exit(0)
+    print(f"\nProceso terminado. Total de libros guardados: {total_guardados}")
+    if total_guardados < MIN_LIBROS:
+        print(f"[!] Atención: se obtuvieron menos de {MIN_LIBROS} libros. Revisar selectores o categoría.")
 
 
 if __name__ == "__main__":
