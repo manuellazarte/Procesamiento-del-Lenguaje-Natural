@@ -5,8 +5,8 @@
 - Manuel Lazarte
 - Emmanuel Mendoza
 - Álvaro Toledo
--
--
+- Romano Maximiliano
+- Troanes Federico Nahuel
 
 ## Categoría seleccionada
 
