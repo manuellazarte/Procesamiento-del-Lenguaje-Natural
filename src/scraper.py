@@ -111,12 +111,14 @@ def extraer_ficha(page, url_libro, url_portada, book_id):
     titulo_tag = soup.select_one("#title > h1")
     titulo = limpiar_texto(titulo_tag.get_text()) if titulo_tag else ""
 
+
+    
     autor_tags = soup.select("#autor > a.dinSource")
-    autores = "; ".join(limpiar_texto(a.get_text()) for a in autor_tags)
+    autores = [limpiar_texto(a.get_text()) for a in autor_tags]
 
     # TODO: confirmar selector real de género (expandir #genero en devtools)
     genero_tags = soup.select("#genero a")
-    generos = "; ".join(limpiar_texto(g.get_text()) for g in genero_tags)
+    generos = [limpiar_texto(g.get_text()) for g in genero_tags]
 
     # TODO: confirmar selector real de serie (solo presente si el libro pertenece a una)
     serie_tag = soup.select_one("#serie a")  # placeholder, revisar en devtools
