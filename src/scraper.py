@@ -26,7 +26,7 @@ MAX_LIBROS = 150
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_PATH = os.path.join(SCRIPT_DIR, "..", "data", "libros.csv")
 FIELDNAMES = [
-    "titulo", "autores", "generos", "serie", "sinopsis",
+    "book_id","titulo", "autores", "generos", "serie", "sinopsis",
     "url_libro", "categoria_origen", "fecha_extraccion", "url_portada",
 ]
 
@@ -85,23 +85,28 @@ def obtener_libros_de_pagina(page, numero_pagina):
     for art in soup.select("article.card"):
         link_tag = art.select_one("a.title")
         img_tag = art.select_one("img.cover")
+        book_id = art.get("id")
         if not link_tag or not link_tag.get("href"):
             continue
         libros.append({
             "url_libro": urljoin(DOMINIO, link_tag["href"]),
             "url_portada": img_tag["src"] if img_tag else "",
+            "book_id": book_id,
         })
+        #"print(book_id)
 
     # TODO: confirmar el selector real del link "Siguiente" en el pie de paginación
     hay_siguiente = soup.select_one("a.next") is not None
     return libros, hay_siguiente
 
 
-def extraer_ficha(page, url_libro, url_portada):
+def extraer_ficha(page, url_libro, url_portada, book_id):
     """Visita la ficha individual del libro y extrae metadatos + sinopsis completa."""
     page.goto(url_libro, timeout=20000)
     page.wait_for_selector("#title", timeout=10000)
     soup = BeautifulSoup(page.content(), "html.parser")
+
+    book_id = book_id.replace("post-", "")  # limpiar prefijo si lo tiene
 
     titulo_tag = soup.select_one("#title > h1")
     titulo = limpiar_texto(titulo_tag.get_text()) if titulo_tag else ""
@@ -125,6 +130,7 @@ def extraer_ficha(page, url_libro, url_portada):
         sinopsis = limpiar_texto(sinopsis_tag.get_text(separator=" "))
 
     return {
+        "book_id": book_id,
         "titulo": titulo,
         "autores": autores,
         "generos": generos,
@@ -163,7 +169,7 @@ def main():
                     continue  # evita duplicados entre corridas
 
                 try:
-                    registro = extraer_ficha(page, libro["url_libro"], libro["url_portada"])
+                    registro = extraer_ficha(page, libro["url_libro"], libro["url_portada"], libro["book_id"])
                     guardar_registro(registro)
                     urls_existentes.add(libro["url_libro"])
                     total_guardados += 1
