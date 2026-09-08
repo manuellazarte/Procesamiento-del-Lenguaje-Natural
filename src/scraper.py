@@ -138,7 +138,7 @@ def extraer_ficha(page, url_libro, url_portada, book_id):
         "generos": generos,
         "serie": serie,
         "sinopsis": sinopsis,
-        "url_libro": url_libro,
+        "url_libro": url_libro.replace(DOMINIO, ""),
         "categoria_origen": CATEGORIA,
         "fecha_extraccion": date.today().isoformat(),
         "url_portada": url_portada,
