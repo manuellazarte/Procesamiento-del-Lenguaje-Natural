@@ -17,6 +17,21 @@
 
 150 libros (dentro del rango de 50–150 definido para la implementación).
 
+## Modelo de datos
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `id_libro` | varchar | Identificador único del libro en el sitio de origen |
+| `titulo` | varchar | Título del libro |
+| `autores` | lista de varchar | Autor o autores, en orden "Nombre Apellido" |
+| `generos` | lista de varchar | Género o géneros del libro |
+| `serie` | varchar, nullable | Serie a la que pertenece; vacío si no corresponde |
+| `sinopsis` | texto | Sinopsis completa del libro |
+| `url_libro` | varchar | Slug final de la URL de la ficha (sin dominio ni ruta completa) |
+| `categoria_origen` | varchar | Categoría seleccionada por el grupo (constante: `belico`) |
+| `fecha_extraccion` | date (ISO 8601) | Fecha en que se obtuvo el registro |
+| `url_portada` | varchar | URL de la imagen de portada |
+
 ## Instalación
 
 ```bash
@@ -41,7 +56,7 @@ Desde la carpeta `src/`:
 python scraper.py
 ```
 
-No recibe argumentos por línea de comandos: la categoría, el rango de libros (50–100),
+No recibe argumentos por línea de comandos: la categoría, el rango de libros (50–150),
 la URL base y el modo headless están definidos como constantes al inicio del archivo
 (`BASE_URL`, `CATEGORIA`, `MIN_LIBROS`, `MAX_LIBROS`).
 
