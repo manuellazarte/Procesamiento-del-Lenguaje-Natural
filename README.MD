@@ -85,14 +85,17 @@ El script:
 ## Estructura del repositorio
 
 ```
-README.md
-src/
-    scraper.py
-data/
-    libros.csv
-docs/
-    diseno_extraccion.md
-requirements.txt
+Procesamiento-del-Lenguaje-Natural/
+├── data/
+│   └── libros.csv
+├── docs/
+│   └── diseno_extraccion.md
+├── src/
+│   ├── scraper.py
+│   └── Trabajo_práctico_N2.ipynb
+├── .gitignore
+├── README.MD
+└── requirements.txt
 ```
 
 ## Principales dificultades encontradas
