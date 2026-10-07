@@ -1,3 +1,13 @@
+# TP1 (scraper)
 playwright
 beautifulsoup4
 pandas
+
+# TP2 (embeddings y búsqueda semántica)
+numpy
+scikit-learn
+matplotlib
+gensim>=4.3.3
+sentence-transformers
+psycopg[binary]
+pgvector

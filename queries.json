@@ -1,0 +1,100 @@
+[
+  {
+    "id": "q01",
+    "consulta": "submarinos durante la Segunda Guerra Mundial",
+    "relevantes": [115044, 116250, 110524],
+    "tipo": "lexica",
+    "filtro_genero": null
+  },
+  {
+    "id": "q02",
+    "consulta": "la guerra de Malvinas entre Argentina y los británicos",
+    "relevantes": [124591, 79148],
+    "tipo": "lexica",
+    "filtro_genero": null
+  },
+  {
+    "id": "q03",
+    "consulta": "soldados alemanes peleando contra los rusos en el frente del este",
+    "relevantes": [121235, 79766, 79613, 97766, 98839, 99234, 107009],
+    "tipo": "lexica",
+    "filtro_genero": null
+  },
+  {
+    "id": "q04",
+    "consulta": "historias de la guerra de Vietnam",
+    "relevantes": [116123, 105160, 97465, 79060, 79079],
+    "tipo": "lexica",
+    "filtro_genero": null
+  },
+  {
+    "id": "q05",
+    "consulta": "la vida en las trincheras de la Primera Guerra Mundial",
+    "relevantes": [111012, 97138, 79267, 116169, 122385, 108644],
+    "tipo": "lexica",
+    "filtro_genero": null
+  },
+  {
+    "id": "q06",
+    "consulta": "aventuras militares en las guerras napoleónicas",
+    "relevantes": [122939, 117934, 120322, 114365, 114366],
+    "tipo": "lexica",
+    "filtro_genero": null
+  },
+  {
+    "id": "q07",
+    "consulta": "espías y agentes secretos contra los nazis",
+    "relevantes": [124151, 119247, 116131, 101120, 97531, 97525, 112869, 80145, 78174, 109567],
+    "tipo": "lexica",
+    "filtro_genero": "Intriga"
+  },
+  {
+    "id": "q08",
+    "consulta": "la guerra de Troya, Aquiles y los héroes griegos",
+    "relevantes": [121723, 119773, 111333, 110527, 97602],
+    "tipo": "lexica",
+    "filtro_genero": null
+  },
+  {
+    "id": "q09",
+    "consulta": "la conquista de México por Hernán Cortés",
+    "relevantes": [104129, 104130, 104127],
+    "tipo": "lexica",
+    "filtro_genero": "Histórico"
+  },
+  {
+    "id": "q10",
+    "consulta": "novelas sobre la Guerra Civil norteamericana",
+    "relevantes": [108191, 108192, 111117, 103393, 107577],
+    "tipo": "lexica",
+    "filtro_genero": null
+  },
+  {
+    "id": "q11",
+    "consulta": "prisioneros en campos de concentración",
+    "relevantes": [124151, 123560, 109602, 104633, 110753, 115207, 79613],
+    "tipo": "lexica",
+    "filtro_genero": null
+  },
+  {
+    "id": "q12",
+    "consulta": "jugarse el pellejo surcando el firmamento a bordo de aeronaves",
+    "relevantes": [125355, 105588, 99214, 79079, 103067, 104518],
+    "tipo": "parafrasis",
+    "filtro_genero": null
+  },
+  {
+    "id": "q13",
+    "consulta": "contienda sangrienta en el Cáucaso musulmán",
+    "relevantes": [113338, 109841],
+    "tipo": "parafrasis",
+    "filtro_genero": null
+  },
+  {
+    "id": "q14",
+    "consulta": "bucaneros modernos que asaltan tanqueros",
+    "relevantes": [81659, 81658],
+    "tipo": "parafrasis",
+    "filtro_genero": null
+  }
+]

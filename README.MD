@@ -112,3 +112,54 @@ requirements.txt
   diferencia de la sinopsis truncada del listado de categoría. Fue necesario reemplazar
   los `<br>` por saltos de línea antes de extraer el texto para no perder la separación
   entre párrafos.
+
+---
+
+# TP2: Embeddings y búsqueda semántica
+
+## Contenido
+
+```
+queries.json                                       # conjunto de evaluación (14 consultas con sus relevantes)
+src/TP2_Lazarte_Mendoza_Toledo_Romano_Troanes.ipynb   # notebook del TP2
+docs/informe.md / docs/informe.docx                # informe (máx. 3 páginas)
+```
+
+El notebook compara cuatro representaciones de las sinopsis (TF-IDF, Word2Vec propio,
+promedio de vectores de SBW y SBERT `distiluse-base-multilingual-cased-v1`), guarda los
+vectores en Postgres con `pgvector` (Supabase), busca por similitud en SQL con filtro por
+género y evalúa todo con precision@k contra el piso de azar. La parte avanzada elegida es
+la **búsqueda híbrida** (full-text de Postgres + vectorial) con *Reciprocal Rank Fusion*.
+
+## Ejecución (Google Colab)
+
+1. Abrir el notebook desde el badge "Open in Colab".
+2. En **Secrets** (ícono de llave en la barra lateral) crear `SUPABASE_DB_URL` con la cadena
+   de conexión de Supabase (botón **Connect** del proyecto → *Session pooler*, puerto 5432 en
+   el host `pooler.supabase.com`) y habilitarle el acceso al notebook. La conexión directa
+   (`db.<proyecto>.supabase.co`) es solo IPv6 en el plan gratuito y Colab no tiene IPv6.
+   La credencial nunca se escribe en el notebook.
+3. Si `queries.json` no está en la rama `main` del repo, subirlo a `/content`.
+4. Ejecutar todo (*Runtime → Run all*). La primera vez descarga SBW (~1 GB) y el modelo
+   de SBERT; los embeddings quedan guardados en `embeddings/*.npy`.
+
+Para correrlo fuera de Colab: `pip install -r requirements.txt` y definir la variable de
+entorno `SUPABASE_DB_URL`.
+
+**Nota:** los proyectos gratuitos de Supabase se pausan tras 7 días sin actividad; se
+reactivan desde el panel.
+
+## Principales dificultades encontradas
+
+- **SBW tiene vocabulario con acentos.** Con el mismo preprocesamiento que TF-IDF
+  (sin acentos), `ejército` se buscaba como `ejercito` y caía en una variante mal escrita.
+  Se agregó un preprocesamiento para SBW que conserva los acentos.
+- **SBERT trunca en silencio.** El modelo tiene un límite de 128 tokens y no avisa:
+  141 de las 150 sinopsis se truncan. Se cuentan tokenizando con el tokenizer del modelo.
+- **`numpy==1.23.5` del apunte no convive con `sentence-transformers`.** Se usa
+  `gensim>=4.3.3` con el numpy que trae Colab.
+- **El pooler de Supabase no soporta *prepared statements*.** Se conecta con
+  `prepare_threshold=None` en psycopg.
+- **Con 150 filas Postgres no usa el índice HNSW** (prefiere un recorrido secuencial
+  exacto), así que para mostrar el problema de recall con filtros hubo que forzar el
+  índice con `enable_seqscan = off` y `enable_sort = off`.

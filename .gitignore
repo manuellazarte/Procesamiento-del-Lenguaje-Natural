@@ -1,3 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
+
+# Artefactos del TP2 (se regeneran al correr el notebook)
+embeddings/
+*.bin.gz
