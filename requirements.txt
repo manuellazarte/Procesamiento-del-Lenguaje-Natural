@@ -11,3 +11,18 @@ gensim>=4.3.3
 sentence-transformers
 psycopg[binary]
 pgvector
+
+# TP3 
+seaborn
+jupyter
+notebook
+ipykernel
+thefuzz
+python-Levenshtein
+langdetect
+spacy
+gliner
+networkx
+nltk
+tqdm
+regex
