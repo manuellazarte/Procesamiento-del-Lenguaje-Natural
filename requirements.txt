@@ -1,0 +1,33 @@
+# TP3 - Recomendador personalizado de libros (Procesamiento del Lenguaje)
+# Python 3.12 (el notebook corre en .venv 3.12.10)
+
+# Datos y utilidades
+pandas
+numpy
+
+# Paso 1: semejanza de cadenas
+thefuzz
+
+# Paso 2 y siguientes: clasificación, métricas, TF-IDF, vecinos
+scikit-learn
+
+# 2.3: detección de idioma
+langdetect
+
+# 2.3: tokenizador de oraciones (el notebook todavía importa nltk)
+nltk
+
+# 2.4: NER con GLiNER (instala también torch y transformers)
+gliner
+
+# Paso 5 en adelante: embeddings de oraciones (modelo multilingüe)
+sentence-transformers
+
+# Paso 8 y alternativa en 2.4: spaCy
+# Después de instalar, descargar el modelo con:
+#   python -m spacy download es_core_news_lg
+spacy
+
+# Jupyter
+ipykernel
+ipywidgets
